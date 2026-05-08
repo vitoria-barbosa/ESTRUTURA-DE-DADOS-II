@@ -9,23 +9,23 @@ class Processo {
   public:
   string nome;
   int prioridade;    // 0 = mais urgente, 9 = menos urgente
-  int burstTotal;
-  int burstRestante;
-  int tempoChegada;
-  int tempoEspera;
+  int burst_total;
+  int burst_restante;
+  int tempo_chegada;
+  int tempo_espera;
 
   Processo(string nome, int prio, int burst, int chegada) {
     this->nome = nome;
     this->prioridade = prio;
-    this->burstTotal = burst;
-    this->burstRestante = burst;
-    this->tempoChegada = chegada;
-    this->tempoEspera = 0;
+    this->burst_total = burst;
+    this->burst_restante = burst;
+    this->tempo_chegada = chegada;
+    this->tempo_espera = 0;
   }
 };
 
 
-class MaxHeapPrioridade {
+class MinHeapPrioridade {
   public:
   vector<Processo> heap;
 
@@ -34,15 +34,15 @@ class MaxHeapPrioridade {
   int dir(int i) { return 2 * i + 2; }
 
   // Menor número = maior urgência; desempate por chegada (FIFO)
-  bool maisUrgente(Processo a, Processo b) {
+  bool mais_urgente(Processo a, Processo b) {
     if (a.prioridade != b.prioridade) {
       return a.prioridade < b.prioridade;
     }
-    return a.tempoChegada < b.tempoChegada;
+    return a.tempo_chegada < b.tempo_chegada;
   }
 
   void subir(int i) {
-    while (i > 0 && maisUrgente(heap[i], heap[pai(i)])) {
+    while (i > 0 && mais_urgente(heap[i], heap[pai(i)])) {
       swap(heap[i], heap[pai(i)]);
       i = pai(i);
     }
@@ -52,10 +52,10 @@ class MaxHeapPrioridade {
     int n = heap.size();
     int melhor = i;
 
-    if (esq(i) < n && maisUrgente(heap[esq(i)], heap[melhor])) {
+    if (esq(i) < n && mais_urgente(heap[esq(i)], heap[melhor])) {
       melhor = esq(i);
     }
-    if (dir(i) < n && maisUrgente(heap[dir(i)], heap[melhor])) {
+    if (dir(i) < n && mais_urgente(heap[dir(i)], heap[melhor])) {
       melhor = dir(i);
     }
 
@@ -88,22 +88,22 @@ class MaxHeapPrioridade {
 };
 
 class EscalonadorPrioridade {
-  MaxHeapPrioridade fila;
+  MinHeapPrioridade fila;
   int tempo = 0;
   int quantum = 2;       // fatia de CPU por rodada
   int limiteAging = 5;   // ciclos de espera antes de promover
 
   // Aging: Percorre todos os processos na fila e eleva a urgência
   // dos que esperam há muito tempo, evitando starvation.
-  void aplicarAging() {
+  void aplicar_aging() {
     for (Processo& p : fila.heap) {
-      p.tempoEspera++;
-      if (p.tempoEspera >= limiteAging && p.prioridade > 0) {
+      p.tempo_espera++;
+      if (p.tempo_espera >= limiteAging && p.prioridade > 0) {
         cout << "\n[AGING] " << p.nome
           << ": prioridade " << p.prioridade
           << " -> " << p.prioridade - 1 << "\n\n";
         p.prioridade--;
-        p.tempoEspera = 0;
+        p.tempo_espera = 0;
       }
     }
     fila.rebuild();   // reordena após mudanças de prioridade
@@ -114,15 +114,15 @@ class EscalonadorPrioridade {
       << "processo=" << setw(8) << left << p.nome
       << "| prio=" << p.prioridade
       << " | exec=" << exec << "u"
-      << " | restante=" << p.burstRestante - exec << "u"
-      << " | burst total=" << p.burstTotal
+      << " | restante=" << p.burst_restante - exec << "u"
+      << " | burst total=" << p.burst_total
       << " [EXECUTANDO]\n";
   }
 
   void terminou_msg(Processo p) {
     cout << "\nprocesso " << p.nome
       << " finalizado em t = " << tempo
-      << " (tempo vida = " << tempo - p.tempoChegada << "u)"
+      << " (tempo vida = " << tempo - p.tempo_chegada << "u)"
       << " [FINALIZADO]\n\n";
   }
 
@@ -138,18 +138,18 @@ class EscalonadorPrioridade {
     cout << "\n======== MAX-HEAP (PRIORIDADE + AGING) ========\n\n";;
 
     while (!fila.heap.empty()) {
-      aplicarAging();
+      aplicar_aging();
 
       Processo atual = fila.remover();
 
-      int exec = min(quantum, atual.burstRestante);
+      int exec = min(quantum, atual.burst_restante);
       executando_msg(atual, exec);
 
       tempo += exec;
-      atual.burstRestante -= exec;
+      atual.burst_restante -= exec;
 
-      if (atual.burstRestante > 0) {
-        atual.tempoEspera = 0;
+      if (atual.burst_restante > 0) {
+        atual.tempo_espera = 0;
         fila.inserir(atual);
       }
       else {
